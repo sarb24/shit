@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 export default function UserLogin() {
   const [email, setEmail] = useState('');

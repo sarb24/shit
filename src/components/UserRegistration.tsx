@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 export default function UserRegistration() {
   const [email, setEmail] = useState('');
@@ -24,41 +24,68 @@ export default function UserRegistration() {
 
     setIsLoading(true);
     try {
+      console.log('Starting user registration process...');
+      
       // Create auth user
-      const { data: { user }, error: authError } = await supabase.auth.signUp({
+      console.log('Creating auth user...');
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             first_name: firstName,
             last_name: lastName,
-          }
+          },
+          emailRedirectTo: window.location.origin + '/auth/callback'
         }
       });
 
       if (!isMounted.current) return;
-      if (authError) throw authError;
-      if (!user) throw new Error('No user returned from sign up');
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+      if (!data.user) {
+        console.error('No user returned from sign up');
+        throw new Error('No user returned from sign up');
+      }
+
+      console.log('Auth user created successfully:', data.user.id);
 
       // Create user profile
+      console.log('Creating user profile...');
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .insert([
           {
-            user_id: user.id,
-            first_name: firstName,
-            last_name: lastName,
-            email: email,
+            id: data.user.id,
+            email: email
           }
-        ]);
+        ])
+        .select();
 
       if (!isMounted.current) return;
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw profileError;
+      }
 
+      console.log('Profile created successfully');
       navigate('/dashboard');
     } catch (err) {
+      console.error('Registration error:', err);
       if (isMounted.current) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        if (err instanceof Error) {
+          setError(err.message);
+          console.error('Detailed error:', {
+            message: err.message,
+            name: err.name,
+            stack: err.stack
+          });
+        } else {
+          setError('An error occurred during registration');
+          console.error('Unknown error type:', err);
+        }
       }
     } finally {
       if (isMounted.current) {
